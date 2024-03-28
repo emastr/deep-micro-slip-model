@@ -1,0 +1,11 @@
+/.git
+/.ipynb_checkpoints
+/data
+/_restored
+/_trash
+/architecture/fourier_neural_operator
+/NaturalGradientTraining
+*.m
+*.Tensor
+*/data
+*__pycache__
