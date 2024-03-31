@@ -1,9 +1,9 @@
+README.md
 pyproject.toml
 src/__init__.py
 src/architecture/__init__.py
 src/architecture/fno_1d.py
 src/architecture/fno_cnn_1d.py
-src/architecture/fno_kernel.py
 src/architecture/session.py
 src/architecture/ufno_1d.py
 src/architecture/unet_1d.py
@@ -16,6 +16,7 @@ src/boundary_solvers/geometry_torch.py
 src/deepmicro.egg-info/PKG-INFO
 src/deepmicro.egg-info/SOURCES.txt
 src/deepmicro.egg-info/dependency_links.txt
+src/deepmicro.egg-info/requires.txt
 src/deepmicro.egg-info/top_level.txt
 src/hmm/__init__.py
 src/hmm/hmm.py
@@ -41,4 +42,3 @@ src/util/plot_tools.py
 src/util/random.py
 src/util/unet.py
 src/util/useful_imports.py
-test/test.py

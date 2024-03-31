@@ -2,9 +2,6 @@ import numpy as np
 import torch
 from scipy.sparse.linalg import gmres, LinearOperator
 import matplotlib.pyplot as plt
-
-import sys
-sys.path.append('/home/emastr/phd/')
 from boundary_solvers.gauss_grid_2d import *
 
 def fix_scalar_input(func):

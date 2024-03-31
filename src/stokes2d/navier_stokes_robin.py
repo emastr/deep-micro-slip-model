@@ -3,8 +3,6 @@ from scipy.sparse.linalg import gmres
 import numpy as np
 from scipy.sparse.linalg import spsolve
 import time
-import sys
-sys.path.append('/home/emastr/phd/')
 from util.basis_scaled import Basis, ChebBasis, FourBasis, BasisProduct, ScaleShiftedBasis, ScaleShiftedBasisProduct
 
 ############ TOOLS ####################################

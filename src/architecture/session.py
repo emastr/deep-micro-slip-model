@@ -1,41 +1,29 @@
-import sys
-sys.path.append('/home/emastr/phd/')
-
 import numpy as np
-import torch as pt
-import torch.autograd as agrad
+import torch.nn as nn
 import matplotlib.pyplot as plt
 from util.plot_tools import *
 from architecture.fno_1d import *
 from boundary_solvers.blobs import *
 from boundary_solvers.geometry import *
-from scipy.sparse.linalg import LinearOperator #, gmres
-from operators.stokes_operator import StokesAdjointBoundaryOp
-from boundary_solvers.geometry_torch import unpack_data, unpack, subsample, integrate, subdict, concat_dict_entries, to_dtype, mean_distance, projection
-from boundary_solvers.geometry_torch import arclength, normalize, curvature, invariant_quantities, project_to_natural, to_device, GeomData, spectral_rescale
-from torch.nn.utils import clip_grad_norm_
-from util.unet import *
+from boundary_solvers.geometry_torch import GeomData
+from architecture.unet import *
 from util.logger import EventTracker
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 from util.dashboard import DashBoard
-import time
 from boundary_solvers.geometry_torch import norm
-
 
 # Meta
 DTYPETORCH = torch.float
 DTYPEPYTHN = "float"
 CTYPETORCH = torch.cfloat
 DEVICE = "cpu"
-PATH_DATA = "/home/emastr/phd/data/micro_geometries_boundcurv_repar_256_torch/data_1.torch"
 
 class SkipNet(nn.Module):
-    def __init__(self, net, settings):
+    def __init__(self, net, settings, device=DEVICE):
         super(SkipNet, self).__init__()
         print("Warning: old skipnet had no scale parameter")
         
-        self.scale = nn.Parameter(torch.ones(4, dtype=DTYPETORCH).to(DEVICE))
+        self.scale = nn.Parameter(torch.ones(4, dtype=DTYPETORCH).to(device))
         self.net = net
         self.settings_ = settings
         
@@ -47,7 +35,6 @@ class SkipNet(nn.Module):
     
     def settings(self):
         return self.settings_
-
 
 
 class FNOsvd(nn.Module):
@@ -176,14 +163,15 @@ class FNOsvd2(nn.Module):
         ax.set_title(f"Cond: {np.linalg.cond(mat):.2e}")
         pass
     
+    
 class FNOsvd3(nn.Module):
-    def __init__(self, basis_size, scale=False, **kwargs):
+    def __init__(self, basis_size, scale=False, device=DEVICE, **kwargs):
         super(FNOsvd3, self).__init__()
         
         
         # Basis In
-        self.scale1 = nn.Parameter(torch.ones(1, dtype=DTYPETORCH).to(DEVICE))
-        self.scale2 = nn.Parameter(torch.ones(1, dtype=DTYPETORCH).to(DEVICE))
+        self.scale1 = nn.Parameter(torch.ones(1, dtype=DTYPETORCH).to(device))
+        self.scale2 = nn.Parameter(torch.ones(1, dtype=DTYPETORCH).to(device))
         self.fno_svd = FNO1d(out_channels=basis_size*2*2, **kwargs)
         self.basis_size = basis_size
         self.kwargs = kwargs
@@ -243,6 +231,7 @@ class FNOsvd3(nn.Module):
         ax.imshow(mat, vmin=mean-2*std, vmax=mean+2*std)
         ax.set_title(f"Cond: {np.linalg.cond(mat):.2e}")
         pass
+    
     
 class FNOfakeSVD(nn.Module):
     def __init__(self, basis_size, scale=False, **kwargs):
@@ -332,7 +321,7 @@ def egeofno(settings, device, dtype):
     return net
     
     
-def egeofno_ver1():
+def egeofno_ver1(device):
     # Features
     inp_features = ['c_norm', 'vt', 'vn', 'dvt_norm', 'dvn_norm']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -350,10 +339,10 @@ def egeofno_ver1():
                 "kernel_size": 1,
                 "batch_norm": True,
                 "amsgrad": False}
-    return egeofno(settings, DEVICE, DTYPETORCH)
+    return egeofno(settings, device, DTYPETORCH)
 
 
-def egeofno_ver2():
+def egeofno_ver2(device=DEVICE):
     # Features
     inp_features = ['c_norm', 'vt', 'vn', 'dvt_norm', 'dvn_norm']#GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -372,10 +361,10 @@ def egeofno_ver2():
                 "batch_norm": True,
                 "amsgrad": False}
     
-    return egeofno(settings, DEVICE, DTYPETORCH)
+    return egeofno(settings, device, DTYPETORCH)
 
 
-def egeofno_ver3():
+def egeofno_ver3(device=DEVICE):
     # Features
     inp_features = ['c_norm', 'vt', 'vn', 'dvt_norm', 'dvn_norm']#GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -393,10 +382,10 @@ def egeofno_ver3():
                 "kernel_size": 1,
                 "batch_norm": True,
                 "amsgrad": False}
-    return egeofno(settings, DEVICE, DTYPETORCH)
+    return egeofno(settings, device, DTYPETORCH)
         
     
-def egeofno_ver4():
+def egeofno_ver4(device=DEVICE):
     # Features
     inp_features = ['c_norm', 'vt', 'vn', 'dvt_norm', 'dvn_norm']#GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -414,7 +403,7 @@ def egeofno_ver4():
                 "kernel_size": 1,
                 "batch_norm": True,
                 "amsgrad": False}
-    return egeofno(settings, DEVICE, DTYPETORCH)      
+    return egeofno(settings, device, DTYPETORCH)      
 
 
 ## SVD FNO
@@ -436,7 +425,8 @@ def svdfno(settings, device, dtype, choice=1):
     net.to(device)   
     return net
 
-def svdfno_ver1():
+
+def svdfno_ver1(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural-dir']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -455,10 +445,10 @@ def svdfno_ver1():
                 "h1_weight": 1.0,
                 "batch_norm": True}
     
-    return svdfno(settings, DEVICE, DTYPETORCH)
+    return svdfno(settings, device, DTYPETORCH)
 
 
-def svdfno_ver2():
+def svdfno_ver2(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural-dir']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -477,10 +467,10 @@ def svdfno_ver2():
                 "kernel_size": 1,
                 "batch_norm": True}
     
-    return svdfno(settings, DEVICE, DTYPETORCH)
+    return svdfno(settings, device, DTYPETORCH)
 
 
-def svdfno_ver3():
+def svdfno_ver3(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -499,10 +489,10 @@ def svdfno_ver3():
                 "kernel_size": 1,
                 "batch_norm": True}
     
-    return svdfno(settings, DEVICE, DTYPETORCH, choice=2)
+    return svdfno(settings, device, DTYPETORCH, choice=2)
 
 
-def svdfno_ver4():
+def svdfno_ver4(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -521,7 +511,7 @@ def svdfno_ver4():
                 "kernel_size": 1,
                 "batch_norm": True}
     
-    return svdfno(settings, DEVICE, DTYPETORCH)
+    return svdfno(settings, device, DTYPETORCH)
 
 
 def fakesvdfno(settings, device, dtype):
@@ -540,7 +530,7 @@ def fakesvdfno(settings, device, dtype):
     return net
 
 
-def svdfnof_ver1():
+def svdfnof_ver1(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -559,10 +549,10 @@ def svdfnof_ver1():
                 "kernel_size": 1,
                 "batch_norm": True}
     
-    return fakesvdfno(settings, DEVICE, DTYPETORCH)
+    return fakesvdfno(settings, device, DTYPETORCH)
 
 
-def svdfnof_ver2():
+def svdfnof_ver2(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -581,19 +571,28 @@ def svdfnof_ver2():
                 "kernel_size": 1,
                 "batch_norm": True}
     
-    return fakesvdfno(settings, DEVICE, DTYPETORCH)
+    return fakesvdfno(settings, device, DTYPETORCH)
+
 
 class Session:
     def __init__(self, 
                  net,
                  save_name="test",
-                 weight_decay=0.001):
+                 weight_decay=0.001,
+                 path_data=None,
+                 save_dir="/home/emastr/phd/data/article_training/",
+                 dash_dir="/home/emastr/phd/data/article_training/dashboard/",
+                 device=DEVICE):
     
         
         # Data
+        self.dash_dir=dash_dir
+        self.save_dir=save_dir
+        self.device=device
+        self.path_data = path_data
         inp_features = net.settings()["input_features"]
         out_features = net.settings()["output_features"]
-        self.data = GeomData(PATH_DATA, inp_features, out_features, random_roll=False, device=DEVICE, dtype=DTYPETORCH)       
+        self.data = GeomData(path_data, inp_features, out_features, random_roll=False, device=device, dtype=DTYPETORCH)       
         M = len(self.data)
         M_train, M_batch = int(0.8*M), 32
         self.train_data, self.test_data = random_split(self.data, [M_train, M-M_train])
@@ -636,14 +635,14 @@ class Session:
         (X_batch, Y_batch) = next(iter(self.train_loader))
         
         # Train on truncated net that expands as iterations progress
-        loss = self.loss_fcn(self.net(X_batch), Y_batch, grad_weight=self.h1_weight)
+        loss = self.loss_fcn(self.net(X_batch), Y_batch, grad_weight=self.h1_weight, device=self.device)
         loss.backward()
         self.optim.step()
         self.logger.end_event("train")
         
         # Test 
         self.trainloss.append(loss.item() ** 0.5)
-        self.testloss.append(self.loss_fcn(self.net(self.X_test), self.Y_test, grad_weight=1.0).item() ** 0.5)
+        self.testloss.append(self.loss_fcn(self.net(self.X_test), self.Y_test, grad_weight=1.0, device=self.device).item() ** 0.5)
 
         self.net.eval()
         # Print minor state info
@@ -668,7 +667,7 @@ class Session:
         self.ax5 = fig.add_subplot(2,3,5)
         self.ax6 = fig.add_subplot(2,3,6)
         
-        self.dashboard = DashBoard() 
+        self.dashboard = DashBoard(path=self.dash_dir) 
         self.dashboard.add_figure(fig)
         
     
@@ -734,7 +733,7 @@ class Session:
                     "settings"   : self.net.settings(),
                     "trainloss"  : self.trainloss,
                     "testloss"   : self.testloss}, 
-                    f"/home/emastr/phd/data/article_training/{self.save_name}_{self.step_num}.Torch") 
+                    f"{self.save_dir}{self.save_name}_{self.step_num}.Torch") 
         
     # Loss function
     @staticmethod
@@ -743,14 +742,14 @@ class Session:
         return torch.mean((x - y)**2 / y_norm**2)
         
     @staticmethod
-    def deriv(x):
+    def deriv(x, device=DEVICE):
         x_fft = torch.fft.rfft(x, dim=-1)
-        freq = 1j * 2 * np.pi * torch.tensor(np.arange(x.shape[-1]//2 + 1))[None, None, :].to(DEVICE)
+        freq = 1j * 2 * np.pi * torch.tensor(np.arange(x.shape[-1]//2 + 1))[None, None, :].to(device)
         x_deriv = torch.fft.irfft(x_fft * freq).to(CTYPETORCH).real
         return x_deriv
 
     @staticmethod
-    def loss_fcn(x, y, grad_weight=0.0):
-        x_der = Session.deriv(x)
-        y_der = Session.deriv(y)
+    def loss_fcn(x, y, grad_weight=0.0, **kwargs):
+        x_der = Session.deriv(x, **kwargs)
+        y_der = Session.deriv(y, **kwargs)
         return Session.mse_normalized(x, y) + grad_weight * Session.mse_normalized(x_der, y_der)

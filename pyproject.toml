@@ -6,4 +6,4 @@ build-backend = "setuptools.build_meta"
 [project]
 name="deepmicro"
 version="1.0.0"
-dependencies=[]
+dependencies=["matplotlib","numpy", "scipy"]

@@ -1,5 +1,3 @@
-import sys
-sys.path.append('/home/emastr/phd/')
 import typing
 from typing import List
 

@@ -1,6 +1,7 @@
 import torch as pt
 from architecture.unet_1d import *
 import torch.nn as nn
+from boundary_solvers.geometry_torch import unpack
 
 DEFAULT_SETTINGS = {"in_channels":2, 
                     "min_out_channels":4,

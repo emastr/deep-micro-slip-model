@@ -1,5 +1,3 @@
-import sys
-sys.path.append('/home/emastr/phd/')
 import typing
 import time
 import numpy as np

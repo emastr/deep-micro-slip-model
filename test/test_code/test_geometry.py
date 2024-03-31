@@ -1,5 +1,3 @@
-import sys
-sys.path.append("/home/emastr/phd/")
 from boundary_solvers.geometry import *
 import numpy as np
 import pytest as pt
