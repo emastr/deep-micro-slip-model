@@ -321,7 +321,7 @@ def egeofno(settings, device, dtype):
     return net
     
     
-def egeofno_ver1(device):
+def egeofno_ver1(device=DEVICE):
     # Features
     inp_features = ['c_norm', 'vt', 'vn', 'dvt_norm', 'dvn_norm']
     out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
@@ -578,21 +578,24 @@ class Session:
     def __init__(self, 
                  net,
                  save_name="test",
-                 weight_decay=0.001,
-                 path_data=None,
+                 weight_decay=0.000,
+                 path_data="/home/emastr/phd/data/micro_geometries_boundcurv_repar_256_torch/data_1.torch",
                  save_dir="/home/emastr/phd/data/article_training/",
-                 dash_dir="/home/emastr/phd/data/article_training/dashboard/",
-                 device=DEVICE):
+                 dash_dir="/home/emastr/phd/data/dashboard/",
+                 device=DEVICE,
+                 seed=None):
     
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            
         
         # Data
         self.dash_dir=dash_dir
         self.save_dir=save_dir
         self.device=device
         self.path_data = path_data
-        inp_features = net.settings()["input_features"]
-        out_features = net.settings()["output_features"]
-        self.data = GeomData(path_data, inp_features, out_features, random_roll=False, device=device, dtype=DTYPETORCH)       
+        self.data = self.get_data(net, path_data, device)   
         M = len(self.data)
         M_train, M_batch = int(0.8*M), 32
         self.train_data, self.test_data = random_split(self.data, [M_train, M-M_train])
@@ -620,7 +623,14 @@ class Session:
         self.dashboard_setup()
         self.save_name = save_name
         
-    
+    @staticmethod
+    def get_data(net, data_dir, device):
+        # Data
+        inp_features = net.settings()["input_features"]
+        out_features = net.settings()["output_features"]
+        return GeomData(data_dir, inp_features, out_features, random_roll=False, device=device, dtype=DTYPETORCH)       
+        
+        
     def train_nsteps(self, N):
         for i in range(N):
             self.train_step()

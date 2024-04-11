@@ -6,6 +6,7 @@ src/architecture/fno_1d.py
 src/architecture/fno_cnn_1d.py
 src/architecture/session.py
 src/architecture/ufno_1d.py
+src/architecture/unet.py
 src/architecture/unet_1d.py
 src/architecture/unrolled_1d.py
 src/boundary_solvers/__init__.py
@@ -22,13 +23,11 @@ src/hmm/__init__.py
 src/hmm/hmm.py
 src/hmm/stokes.py
 src/hmm/stokes_deep.py
+src/hmm/stokes_deep_fenics.py
 src/hmm/stokes_fenics.py
 src/operators/__init__.py
 src/operators/stokes_operator.py
 src/stokes2d/__init__.py
-src/stokes2d/micro_problem.py
-src/stokes2d/micro_problem_deepxde.py
-src/stokes2d/micro_problem_fenics.py
 src/stokes2d/navier_stokes_robin.py
 src/stokes2d/robin_solver.py
 src/util/__init__.py
@@ -40,5 +39,3 @@ src/util/logger.py
 src/util/mesh_tools.py
 src/util/plot_tools.py
 src/util/random.py
-src/util/unet.py
-src/util/useful_imports.py
