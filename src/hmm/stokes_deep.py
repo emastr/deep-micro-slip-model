@@ -120,21 +120,25 @@ class DeepMicroSolver(Solver):
         
         
         plt.subplot(2,3,2)
-        plt.plot(self.t, self.r.real)
-        plt.plot(t1, self.r_true.real)
+        plt.plot(self.t, self.r.real, label="Deep")
+        plt.plot(t1, self.r_true.real, '--', label="True")
+        plt.legend()
         
         plt.subplot(2,3,3)
-        plt.plot(self.t, self.r.imag)
-        plt.plot(t1, self.r_true.imag)
+        plt.plot(self.t, self.r.imag, label="Deep")
+        plt.plot(t1, self.r_true.imag, '--', label="True")
+        plt.legend()
         
         plt.subplot(2,3,4)
-        plt.plot(self.t, self.dr.real)
-        plt.plot(t1, self.dr_true.real)
+        plt.plot(self.t, self.dr.real, label="Deep")
+        plt.plot(t1, self.dr_true.real, '--', label="True")
+        plt.legend()
         
         plt.subplot(2,3,5)
-        plt.plot(self.t, self.dr.imag)
-        plt.plot(t1, self.dr_true.imag)
-   
+        plt.plot(self.t, self.dr.imag, label="Deep")
+        plt.plot(t1, self.dr_true.imag, '--', label="True")
+        plt.legend()
+        
 class MicroData():
             def __init__(self, x, a):
                 self.alpha = a

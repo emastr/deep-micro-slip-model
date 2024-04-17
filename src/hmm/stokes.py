@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from util.basis_scaled import FourBasis, ChebBasis, ScaleShiftedBasis
 from util.plot_tools import *
 from hmm.hmm import MacroProblem, MicroProblem, HMMProblem, Solver, IterativeHMMSolver
+from boundary_solvers.gauss_grid_2d import TrapezGrid
 from boundary_solvers.geometry import Geometry, RoundedMicroGeom, ShiftScaledGeom, MacroGeom, MacroGeomGeneric, RoundedMicroGeomV2
 from stokes2d.robin_solver import solveRobinStokes_fromFunc
 from scipy.io import loadmat
@@ -361,6 +362,116 @@ class StokesMicProb(MicroProblem):
         """Plot micro domain. relative = True means plotting in true coordinates."""
         self.geom.plot(axis, **kwargs)
         
+class StokesTrapezMicProb(MicroProblem):
+    def __init__(self, stokes_data: StokesData, xPos, width, height, linePos, deg_project=None, xDim_reduce=None, yDim_reduce=None, num_pts=100, logger=None, **kwargs):
+        self.stokes_data = stokes_data
+        self.xPos = xPos
+        self.width = width
+        self.height = height
+        self.linePos = linePos
+        self.deg_project = deg_project
+        self.logger = logger
+        self.xDim_reduce = xDim_reduce
+        self.yDim_reduce = yDim_reduce
+        
+        # Rescale to [0, 0.5pi] domain
+        dom = stokes_data.dom
+        wid = stokes_data.width
+        x0 = stokes_data.dom[0][0]  # Left point
+        
+        dom1 = [(xPos - x0)/wid*0.5*np.pi, (xPos+width-x0)/wid*0.5*np.pi]
+        dom2 = [0, 0.5*np.pi]
+        func = Geometry.change_domain([stokes_data.f, stokes_data.df, stokes_data.ddf], dom1, dom2)        
+        self.geom = RoundedMicroGeom(*func, 
+                                     width = width, 
+                                     height = height, 
+                                     corner_w = width*0.2,
+                                     center_x = xPos + 0.5*width,
+                                     shift_y = stokes_data.dom[1][0],
+                                     line_pos = linePos*height, **kwargs)
+        self.geom.grid = TrapezGrid(num_pts)
+        self.condition = None
+        
+    
+    def is_solution(self, micro_sol, tol = 1e-5):
+        # Requires a solver to check. instead, check convergence.
+        return False
+    
+    def update(self, macro_sol, **kwargs):
+        """Given a solution macroSol to the macro problem, read off the solution at points in the micro problem,
+        and extrapolate to missing parts of the micro boundary."""
+        
+        # Joint components
+        u = macro_sol.u
+        v = macro_sol.v
+
+        if (self.yDim_reduce is None) or (self.xDim_reduce is None):
+           yDim = u.yDim
+           xDim = u.xDim
+        else:
+           yDim = self.yDim_reduce
+           xDim = self.xDim_reduce
+        u_ = u.change_dim(xDim, yDim)
+        v_ = v.change_dim(xDim, yDim)
+        
+        def toComplex(fx, fy):
+            return lambda z: fx(np.real(z), np.imag(z)) + 1j * fy(np.real(z), np.imag(z))
+        
+        if self.logger is not None:
+            self.logger.start_event("micro_update_diff")
+
+        U = toComplex(u_, v_)
+        dxU = toComplex(u_.diff(1,0), v_.diff(1,0))
+        dyU = toComplex(u_.diff(0,1), v_.diff(0,1))
+        dxdxU = toComplex(u_.diff(2,0), v_.diff(2,0))
+        dxdyU = toComplex(u_.diff(1,1), v_.diff(1,1))
+        dydyU = toComplex(u_.diff(0,2), v_.diff(0,2))
+        
+        if self.logger is not None:
+            self.logger.end_event("micro_update_diff")
+
+        z  = lambda t: self.geom.eval_param(t=t)
+        dz = lambda t: self.geom.eval_param(t=t, derivative=1)
+        ddz = lambda t: self.geom.eval_param(t=t, derivative=2)
+
+        def g(t):
+            return U(z(t))
+
+        def dg(t):
+            z_ = z(t)
+            dz_ = dz(t)
+            return np.real(dz_) * dxU(z_) + np.imag(dz_) * dyU(z_)
+
+        def ddg(t):
+            z_ = z(t)
+            dz_ = dz(t)
+            ddz_ = ddz(t)
+
+            x, y = np.real(z_), np.imag(z_)
+            dx, dy = np.real(dz_), np.imag(dz_)
+            ddx, ddy = np.real(ddz_), np.imag(ddz_)    
+
+            return ddx * dxU(z_) + ddy * dyU(z_) + (dx**2) * dxdxU(z_) + (2*dx*dy)*dxdyU(z_) + (dy**2)*dydyU(z_)
+        
+        if self.logger is not None:
+            self.logger.start_event("micro_update_fit")
+
+        deg_project = kwargs.pop("N", self.deg_project)
+        g_extrap = self.geom.project(g, dg, ddg, N=deg_project, **kwargs)
+        self.set_data(g_extrap)
+
+        if self.logger is not None:
+            self.logger.end_event("micro_update_fit")
+    
+    def set_data(self, condition):
+        """Change the boundary condition of the micro problem."""
+        self.condition = condition
+    
+    def plot(self, axis, **kwargs):
+        """Plot micro domain. relative = True means plotting in true coordinates."""
+        self.geom.plot(axis, **kwargs)
+        
+     
         
 class MicroSolver(Solver):
     """Solve the micro problem at a specific position. Precompute."""
@@ -378,7 +489,7 @@ class MicroSolver(Solver):
             self.logger.end_event("micro_precompute")
         
     def can_solve(self, problem):
-        return isinstance(problem, StokesMicProb)
+        return isinstance(problem, StokesMicProb) or isinstance(problem, StokesTrapezMicProb)
         
     def solve(self, problem: StokesMicProb):
         # Log Solve time

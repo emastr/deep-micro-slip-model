@@ -126,7 +126,7 @@ def plot_line(xval, yval, funcs, titles, domain_plotter=None, axis='x'):
     plt.subplot(132)
     plt.title("Error on line")
     for title, val in zip(titles[1:], func_vals[1:]):
-        plt.plot(xplot, val - func_vals[0], label=title)
+        plt.plot(xplot, np.abs(val - func_vals[0]), label=title)
     remove_top_right_axes(plt.gca())
     plt.legend()
 

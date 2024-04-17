@@ -159,6 +159,44 @@ class GaussLegGrid:
 
     
 
+class TrapezGrid:
+    def __init__(self, n_pts):
+        """
+        Discretisation of grid
+        :param segments: on the form [t_0, t_1, t_2, ..., t_n]
+                         where each segment [t_i, t_{i+1}] is smooth.
+        :param tau:
+        :param taup:
+        :param taupp:
+        """
+        self.segments = [0, 2*np.pi]
+        self.n_pts = n_pts
+
+    def get_grid_and_weights(self):
+        grid = np.linspace(0, 2*np.pi, self.n_pts+1)[:-1]
+        weights = np.ones_like(grid) * 2*np.pi/self.n_pts
+        return grid, weights
+            
+    def integrate(self, func):
+        t, weights = self.get_grid_and_weights()
+        return self.integrate_vec(func(t), weights)
+    
+    @staticmethod
+    def integrate_vec(fvals, weights):
+        if len(fvals.shape) == 2:
+            #print((fvals * weights).shape)
+            return np.sum(fvals * weights, axis=1)
+        else:
+            #print((fvals * weights).shape)
+            return np.sum(fvals * weights, axis=0)
+
+    @staticmethod
+    def integrate_func(func, gridpts, weights):
+        return GaussLegGrid.integrate_vec(func(gridpts), weights)
+
+
+    
+
 
     
 class StokesDirichletProblem():
