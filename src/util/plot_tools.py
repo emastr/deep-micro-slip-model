@@ -118,7 +118,10 @@ def plot_line(xval, yval, funcs, titles, domain_plotter=None, axis='x'):
     plt.title("Solution on line")
     func_vals = [f(xval, yval) for f in funcs]
     for title, val in zip(titles, func_vals):
-        plt.plot(xplot, val, label=title)
+        if title=="Smooth":
+            plt.plot(xplot, val, 'k--', label=title)
+        else:
+            plt.plot(xplot, val, label=title)
     remove_top_right_axes(plt.gca())
     plt.legend()
 

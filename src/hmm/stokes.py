@@ -258,7 +258,7 @@ class StokesMicProb(MicroProblem):
         self.geom = RoundedMicroGeom(*func, 
                                      width = width, 
                                      height = height, 
-                                     corner_w = width*0.2,
+                                     corner_w = width*0.1, #0.2
                                      center_x = xPos + 0.5*width,
                                      shift_y = stokes_data.dom[1][0],
                                      line_pos = linePos*height, **kwargs)
