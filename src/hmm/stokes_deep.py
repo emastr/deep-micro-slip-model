@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from util.plot_tools import *
 from hmm.hmm import Solver
-from hmm.stokes import StokesMicProb
+from hmm.stokes import StokesMicProb, StokesTrapezMicProb
 from architecture.fno_1d import FNO1d
 import torch.nn.functional as F
 from boundary_solvers.geometry_torch import GeomData, concat_dict_entries, subdict, unpack, geometry_to_net_input, projection
@@ -93,7 +93,7 @@ class DeepMicroSolver(Solver):
             self.logger.end_event("deep_micro_precompute")
     
     def can_solve(self, problem):
-        return isinstance(problem, StokesMicProb)
+        return isinstance(problem, StokesMicProb) or isinstance(problem, StokesTrapezMicProb)
         
     def solve(self, problem: StokesMicProb):
         # Log Solve time

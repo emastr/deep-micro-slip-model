@@ -131,6 +131,14 @@ def reparameterize_dict(t, data, M=None):
     if M is None:
         M = len(t)
     t_np = np.linspace(0, 2*np.pi, M+1)[:-1]
+    
+    # Add the first point to the end to make it periodic.
+    if abs(t[-1]- t[0])%(2*np.pi) > 1e-8:
+        t = np.concatenate([[t[-1]-2*np.pi], t, [2*np.pi+t[0]]])
+        for key in data.keys():
+            data[key] = np.concatenate([data[key][-1:], data[key], data[key][0:1]], axis=-1)
+    
+        
     data_out = {}
     for key in data.keys():
         f = interp1d(t, data[key], axis=-1)

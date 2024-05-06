@@ -652,7 +652,7 @@ class Session:
         
         # Test 
         self.trainloss.append(loss.item() ** 0.5)
-        self.testloss.append(self.loss_fcn(self.net(self.X_test), self.Y_test, grad_weight=1.0, device=self.device).item() ** 0.5)
+        self.testloss.append(self.loss_fcn(self.net(self.X_test), self.Y_test, grad_weight=0.0, device=self.device).item() ** 0.5)
 
         self.net.eval()
         # Print minor state info
