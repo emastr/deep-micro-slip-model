@@ -75,18 +75,24 @@ class DeepMicroSolver(Solver):
         if self.logger is not None:
             self.logger.end_event("deep_micro_net_eval")
         
-        
-        # Project to cartesian
-        rx, ry = projection(Y[0], Y[1], tx, ty, inv=True)        
-        drx, dry = projection(Y[2]*dv_norm, Y[3]*dv_norm, tx, ty, inv=True)
+        if 'drt_norm' in net_settings['output_features']:
+            # Project to cartesian
+            print("normalized output")
+            rx, ry = projection(Y[0], Y[1], tx, ty, inv=True)        
+            drx, dry = projection(Y[2]*dv_norm, Y[3]*dv_norm, tx, ty, inv=True)
+        else:
+            rx, ry = Y[0], Y[1]
+            drx, dry = Y[2], Y[3]
         
         # Save as complex
         self.r = rx + 1j * ry
         self.dr = drx + 1j * dry
 
-        
-        self.avg = lambda cond: np.sum((self.r * np.conjugate(1j * cond(self.t))).real)
-        self.davg = lambda cond: np.sum((self.dr * np.conjugate(1j * cond(self.t))).real)
+        #print("WARNING: HOT-FIX line 87 at stokes_deep.py")
+        d = 3
+        #assert np.all(self.t[1:]-self.t[:-1] > 0), f"{self.t[-d:]}"
+        self.avg = lambda cond: np.sum((self.r[:-d] * np.conjugate(1j * cond(self.t[:-d]))).real)
+        self.davg = lambda cond: np.sum((self.dr[:-d] * np.conjugate(1j * cond(self.t[:-d]))).real)
         
 
         if self.logger is not None:

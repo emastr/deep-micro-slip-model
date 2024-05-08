@@ -403,7 +403,30 @@ def egeofno_ver4(device=DEVICE):
                 "kernel_size": 1,
                 "batch_norm": True,
                 "amsgrad": False}
-    return egeofno(settings, device, DTYPETORCH)      
+    return egeofno(settings, device, DTYPETORCH)   
+
+   
+def egeofno_ver5(device=DEVICE):
+    # Features
+    inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural-dir']
+    out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
+
+    # Model
+    settings = {"modes": 40,
+                "input_features": inp_features,
+                "output_features": out_features,
+                "weight_decay": 0,
+                "layer_widths": [5*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
+                "skip": True,
+                "bias": True,
+                "h1_weight": 1.0,
+                "activation": F.gelu,
+                "kernel_size": 1,
+                "batch_norm": True,
+                "amsgrad": False}
+    
+    return egeofno(settings, device, DTYPETORCH)
+
 
 
 ## SVD FNO
@@ -572,6 +595,53 @@ def svdfnof_ver2(device=DEVICE):
                 "batch_norm": True}
     
     return fakesvdfno(settings, device, DTYPETORCH)
+
+
+# Non-invariant architectures
+def fno_ver1(device=DEVICE):
+    # Features
+    inp_features = GeomData.PREDEFINED_INPUTS['reduced-cartesian']
+    out_features = GeomData.PREDEFINED_OUTPUTS['cartesian']
+    
+    # Model
+    settings = {"modes": 40,
+                "input_features": inp_features,
+                "output_features": out_features,
+                "weight_decay": 0,
+                "layer_widths": [3*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
+                "skip": True,
+                "bias": True,
+                "h1_weight": 1.0,
+                "activation": F.gelu,
+                "kernel_size": 1,
+                "batch_norm": True,
+                "amsgrad": False}
+    
+    return egeofno(settings, device, DTYPETORCH)
+
+def fno_ver2(device=DEVICE):
+    # Features
+    inp_features = GeomData.PREDEFINED_INPUTS['full-cartesian']
+    out_features = GeomData.PREDEFINED_OUTPUTS['cartesian']
+    
+    # Model
+    settings = {"modes": 40,
+                "input_features": inp_features,
+                "output_features": out_features,
+                "weight_decay": 0,
+                "layer_widths": [4*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
+                "skip": True,
+                "bias": True,
+                "h1_weight": 1.0,
+                "activation": F.gelu,
+                "kernel_size": 1,
+                "batch_norm": True,
+                "amsgrad": False}
+    
+    return egeofno(settings, device, DTYPETORCH)
+
+
+
 
 
 class Session:

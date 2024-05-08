@@ -8,6 +8,7 @@ from scipy.interpolate import interp1d
 
 class GeomData(Dataset):
     PREDEFINED_INPUTS = {'full-cartesian':  ['x', 'y', 'dx','dy','ddx','ddy','vx','vy', 'dvx', 'dvy'],\
+                         'reduced-cartesian':  ['x', 'y','vx','vy', 'dvx', 'dvy'],\
                          'full-natural':  ['x', 'y', 'tx', 'ty', 'c', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural': ['c', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural-rad': ['rad', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
