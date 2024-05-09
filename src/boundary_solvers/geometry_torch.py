@@ -8,6 +8,7 @@ from scipy.interpolate import interp1d
 
 class GeomData(Dataset):
     PREDEFINED_INPUTS = {'full-cartesian':  ['x', 'y', 'dx','dy','ddx','ddy','vx','vy', 'dvx', 'dvy'],\
+                         'full-cartesian-norm':  ['cx_norm', 'cy_norm', 'dcx_norm','dcy_norm','ddcx_norm','ddcy_norm','vx','vy', 'dvx_norm', 'dvy_norm'],\
                          'reduced-cartesian':  ['x', 'y','vx','vy', 'dvx', 'dvy'],\
                          'full-natural':  ['x', 'y', 'tx', 'ty', 'c', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural': ['c', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
@@ -17,7 +18,8 @@ class GeomData(Dataset):
                          'FIX:invariant-natural-dir': ['c_norm', 'dct_norm', 'dcn_norm', 'vt', 'vn', 'dvt', 'dvn']}
     
     PREDEFINED_OUTPUTS = {'cartesian': ['rx', 'ry', 'drx', 'dry'],\
-                          'natural': ['rt', 'rn', 'drt', 'drn'],
+                          'cartesian-norm': ['rx', 'ry', 'drx_norm', 'dry_norm'],\
+                          'natural': ['rt', 'rn', 'drt', 'drn'],\
                           'FIX:invariant-natural': ['rt', 'rn', 'drt_norm', 'drn_norm']}
     
     def __init__(self, path, input_features, output_features, random_roll=True, device="cuda:0", dtype=torch.double):
@@ -72,8 +74,14 @@ class GeomData(Dataset):
         out.update(project_to_natural(['r', 'dr'], inp['tx'], inp['ty'], out))
         
         dv_norm = (norm(inp['dvt'])**2 + norm(inp['dvn'])**2)**0.5
+        
+        # Invariant
         out['drt_norm'] = out['drt'] / dv_norm
         out['drn_norm'] = out['drn'] / dv_norm
+        
+        # Not invariant
+        out['drx_norm'] = out['drx'] / dv_norm
+        out['dry_norm'] = out['dry'] / dv_norm
         return out
 
     @staticmethod
@@ -89,14 +97,34 @@ class GeomData(Dataset):
         inp.update(project_to_natural(['dc'], inp['tx'], inp['ty'], inp))
         
         ### Add normalised quantities
+        
         # Normalise dv 
         dv_norm = (norm(inp['dvt'])**2 + norm(inp['dvn'])**2)**0.5
+        
+        # Rotation invariant
         inp['dvt_norm'] = inp['dvt'] / dv_norm
         inp['dvn_norm'] = inp['dvn'] / dv_norm
         
+        # Not rotation invariant
+        inp['dvx_norm'] = inp['dvx'] / dv_norm
+        inp['dvy_norm'] = inp['dvy'] / dv_norm
+        
+        
         dc_norm = (norm(inp['dct'])**2 + norm(inp['dcn'])**2)**0.5
+        
+        # Rotation invariant
         inp['dct_norm'] = inp['dct'] / dc_norm
-        inp['dcn_norm'] = inp['dcn'] / dc_norm
+        inp['dcn_norm'] = inp['dcn'] / dc_norm       
+        
+        # Not rotation invariant
+        inp['cx_norm'] = dx / dc_norm# 
+        inp['cy_norm'] = dy / dc_norm# 
+        
+        inp['dcx_norm'] = inp['dx'] / dc_norm
+        inp['dcy_norm'] = inp['dy'] / dc_norm
+        
+        inp['ddcx_norm'] = inp['ddx'] / dc_norm
+        inp['ddcy_norm'] = inp['ddy'] / dc_norm
         
         
         # Normalise curvature using monotone function sigmoid(x/2) - 1/2.
@@ -246,7 +274,7 @@ def unpack_data(data):
     return (inp, out)
     
 def arclength(dx, dy, w):
-    return integrate((dx**2 + dy**2)**0.5, w)    
+    return integrate((dx**2 + dy**2)**0.5, w)
 
 def normalize(dx, dy):
     """Normalize 2-dim vector"""
