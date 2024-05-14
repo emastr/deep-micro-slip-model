@@ -77,9 +77,12 @@ class DeepMicroSolver(Solver):
         
         if 'drt_norm' in net_settings['output_features']:
             # Project to cartesian
-            #print("normalized output")
+            # print("normalized output")
             rx, ry = projection(Y[0], Y[1], tx, ty, inv=True)        
             drx, dry = projection(Y[2]*dv_norm, Y[3]*dv_norm, tx, ty, inv=True)
+        elif 'drx_norm' in net_settings['output_features']:
+            rx, ry = Y[0], Y[1]
+            drx, dry = Y[2]*dv_norm, Y[3]*dv_norm
         else:
             rx, ry = Y[0], Y[1]
             drx, dry = Y[2], Y[3]

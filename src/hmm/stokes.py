@@ -255,21 +255,21 @@ class StokesMicProb(MicroProblem):
         dom1 = [(xPos - x0)/wid*0.5*np.pi, (xPos+width-x0)/wid*0.5*np.pi]
         dom2 = [0, 0.5*np.pi]
         func = Geometry.change_domain([stokes_data.f, stokes_data.df, stokes_data.ddf], dom1, dom2)        
-        self.geom = RoundedMicroGeom(*func, 
-                                     width = width, 
-                                     height = height, 
-                                     corner_w = width*0.2, #0.2
-                                     center_x = xPos + 0.5*width,
-                                     shift_y = stokes_data.dom[1][0],
-                                     line_pos = linePos*height, **kwargs)
+        #self.geom = RoundedMicroGeom(*func, 
+                                     #width = width, 
+                                     #height = height, 
+                                     #corner_w = width*0.2, #0.2
+                                     #center_x = xPos + 0.5*width,
+                                     #shift_y = stokes_data.dom[1][0],
+                                     #line_pos = linePos*height, **kwargs)
         
-        # self.geom = RoundedMicroGeomV2(*func, 
-        #                              width = width, 
-        #                              height = height, 
-        #                              corner_w = width*0.2,
-        #                              center_x = xPos + 0.5*width,
-        #                              shift_y = stokes_data.dom[1][0],
-        #                              line_pos = linePos*height, **kwargs)
+        self.geom = RoundedMicroGeomV2(*func, 
+                                      width = width, 
+                                      height = height, 
+                                      corner_w = width*0.2,
+                                      center_x = xPos + 0.5*width,
+                                      shift_y = stokes_data.dom[1][0],
+                                      line_pos = linePos*height, **kwargs)
         
         # Translate and scale to fit original 
         #shift = 0.5*width + xPos - 0.5j * stokes_data.height
@@ -502,6 +502,7 @@ class MicroSolver(Solver):
                 self.x = x
         t,_ = problem.geom.grid.get_grid_and_weights()
         c = problem.condition(t)
+        
         out = MicroData(problem.xPos + problem.width/2, -self.avg(c) / self.davg(c))
 
         # End log

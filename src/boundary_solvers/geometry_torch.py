@@ -10,6 +10,7 @@ class GeomData(Dataset):
     PREDEFINED_INPUTS = {'full-cartesian':  ['x', 'y', 'dx','dy','ddx','ddy','vx','vy', 'dvx', 'dvy'],\
                          'full-cartesian-norm':  ['cx_norm', 'cy_norm', 'dcx_norm','dcy_norm','ddcx_norm','ddcy_norm','vx','vy', 'dvx_norm', 'dvy_norm'],\
                          'reduced-cartesian':  ['x', 'y','vx','vy', 'dvx', 'dvy'],\
+                         'reduced-cartesian-norm':  ['cx_norm', 'cy_norm', 'tx', 'ty', 'c_norm', 'vx','vy', 'dvx', 'dvy'],\
                          'full-natural':  ['x', 'y', 'tx', 'ty', 'c', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural': ['c', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural-rad': ['rad', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
@@ -20,7 +21,8 @@ class GeomData(Dataset):
     PREDEFINED_OUTPUTS = {'cartesian': ['rx', 'ry', 'drx', 'dry'],\
                           'cartesian-norm': ['rx', 'ry', 'drx_norm', 'dry_norm'],\
                           'natural': ['rt', 'rn', 'drt', 'drn'],\
-                          'FIX:invariant-natural': ['rt', 'rn', 'drt_norm', 'drn_norm']}
+                          'FIX:invariant-natural': ['rt', 'rn', 'drt_norm', 'drn_norm'],\
+                          'FIX:invariant-natural-dir': ['rt', 'rn', 'drt', 'drn']}
     
     def __init__(self, path, input_features, output_features, random_roll=True, device="cuda:0", dtype=torch.double):
         
@@ -204,6 +206,7 @@ def geometry_to_net_input(geom, Mout, output=False):
         data.update({"rx": r.real, "ry": r.imag, "drx": dr.real, "dry": dr.imag})
         
     data = reparameterize_dict(l, data, M=Mout)
+    #data["t"] = np.linspace(0, 2*np.pi, Mout+1)[:-1]
     return data
   
 def concat_dicts(dict1, dict2, axis):

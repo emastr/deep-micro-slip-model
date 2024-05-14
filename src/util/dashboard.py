@@ -21,7 +21,7 @@ class DashBoard():
         self.path = path
         self.tracked_figures = []
         self.num_figures = 0
-        os.makedirs(self.path, exist_ok=True)
+        #os.makedirs(self.path, exist_ok=True)
     
     def add_figure(self, fig: Figure):    
         self.tracked_figures.append(DashFigure(fig, self.path + f"figure_{len(self.tracked_figures)}.jpeg"))

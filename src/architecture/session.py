@@ -474,7 +474,8 @@ def svdfno_ver1(device=DEVICE):
 def svdfno_ver2(device=DEVICE):
     # Features
     inp_features = GeomData.PREDEFINED_INPUTS['FIX:invariant-natural-dir']
-    out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
+    #out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural']
+    out_features = GeomData.PREDEFINED_OUTPUTS['FIX:invariant-natural-dir']
     basis_size = 8
     # Model
     settings = {"basis_size": basis_size,
@@ -650,7 +651,7 @@ def fno_ver3(device=DEVICE):
                 "input_features": inp_features,
                 "output_features": out_features,
                 "weight_decay": 0,
-                "layer_widths": [4*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
+                "layer_widths": [2*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
                 "skip": True,
                 "bias": True,
                 "h1_weight": 1.0,
@@ -661,6 +662,26 @@ def fno_ver3(device=DEVICE):
     
     return egeofno(settings, device, DTYPETORCH)
 
+def fno_ver4(device=DEVICE):
+    # Features
+    inp_features = GeomData.PREDEFINED_INPUTS['reduced-cartesian-norm']
+    out_features = GeomData.PREDEFINED_OUTPUTS['cartesian-norm']
+    
+    # Model
+    settings = {"modes": 40,
+                "input_features": inp_features,
+                "output_features": out_features,
+                "weight_decay": 0,
+                "layer_widths": [4*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
+                "skip": True,
+                "bias": True,
+                "h1_weight": 1.0,
+                "activation": F.gelu,
+                "kernel_size": 1,
+                "batch_norm": True,
+                "amsgrad": False}
+    
+    return egeofno(settings, device, DTYPETORCH)
 
 
 
