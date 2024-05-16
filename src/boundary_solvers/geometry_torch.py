@@ -10,7 +10,7 @@ class GeomData(Dataset):
     PREDEFINED_INPUTS = {'full-cartesian':  ['x', 'y', 'dx','dy','ddx','ddy','vx','vy', 'dvx', 'dvy'],\
                          'full-cartesian-norm':  ['cx_norm', 'cy_norm', 'dcx_norm','dcy_norm','ddcx_norm','ddcy_norm','vx','vy', 'dvx_norm', 'dvy_norm'],\
                          'reduced-cartesian':  ['x', 'y','vx','vy', 'dvx', 'dvy'],\
-                         'reduced-cartesian-norm':  ['cx_norm', 'cy_norm', 'tx', 'ty', 'c_norm', 'vx','vy', 'dvx', 'dvy'],\
+                         'reduced-cartesian-norm':  ['cx_norm', 'cy_norm', 'tx', 'ty', 'c_norm', 'vx','vy', 'dvx_norm', 'dvy_norm'],\
                          'full-natural':  ['x', 'y', 'tx', 'ty', 'c', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural': ['c', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
                          'equivariant-natural-rad': ['rad', 'dist', 'vt', 'vn', 'dvt', 'dvn'],\
@@ -137,7 +137,12 @@ class GeomData(Dataset):
         inp['rad'] = sigmoid_normalisation(1/inp['c'])
         inp['c'] = sigmoid_normalisation(inp['c'])
         return inp
-        
+
+@staticmethod
+def interp_periodic(t, y, tval):
+    t = np.concatenate([[t[-1]-np.pi*2], t, [t[0] + np.pi*2]])
+    y = np.concatenate([[y[-1]], y, [y[0]]])
+    return interp1d(t, y, kind="cubic")(tval)
 
 def reparameterize_data(t, dt, data, M=None):
     """Reparameterize the data to be a function of t in [0,1].
@@ -153,6 +158,7 @@ def reparameterize_data(t, dt, data, M=None):
     data_np = f(t_np)
     
     return torch.from_numpy(data_np)
+
 
 def reparameterize_dict(t, data, M=None):
     """Reparameterize the data to be a function of t in [0,1].

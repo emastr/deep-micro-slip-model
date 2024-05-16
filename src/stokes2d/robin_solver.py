@@ -76,7 +76,9 @@ def solveRobinStokes_fromFunc(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yD
 def solveRobinStokes_fromBasis(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yDim, **kwargs):
     """Solve from Basis Function objects"""
     alpha_0 = np.mean(alpha.eval_grid())
-    uC,vC,info = solveRobinStokesIterative(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yDim, alpha0=alpha_0, **kwargs)
+    #uC,vC,info = solveRobinStokesIterative(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yDim, alpha0=alpha_0, **kwargs)
+    uC,vC,info = solveRobinStokesMonolithic(f.basis.coef, g.basis.coef, alpha.basis.coef, uTop.basis.coef, beta.basis.coef, \
+                                            vTop.basis.coef, vBot.basis.coef, dom, xDim, yDim, **kwargs)
     
     u = BasisProduct(uC, xDim, yDim, FourBasis, ChebBasis)
     v = BasisProduct(vC, xDim, yDim, FourBasis, ChebBasis)
@@ -200,6 +202,166 @@ def get_bdry_vec(uTop, beta, vTop, vBot, Lx, Ly, Nx, Ny):
     b_bdry = vstack([beta, vBot, uTop, vTop[ks!=0,:]])
     return b_bdry
 
+
+
+def solveRobinStokesMonolithic(f, g, alpha, uTop, beta, vTop, vBot, dom, Nx, Ny, with_gmres=False, **gmresargs):
+    """SOLVEROBINSTOKES   Solve 1-periodic Stokes equations on 2D domain [0,Lx]x[0, Ly].
+     The inputs must be ChebFourFun - objects.
+
+     f:[0,Lx]x[0,Ly] -> R  force in u-direction
+     g:[0,Lx]x[0,Ly] -> R  force in v-direction
+     alpha:[0,Lx] -> R     variable shear constant
+     uTop:[0,Lx] -> R      Dirichlet condition for u at y=1
+     beta:[0,Lx] -> R      Inhom robin condition for u at y=-1
+     vTop:[0,Lx] -> R      Dirichlet condition for v at y=1
+     vBot:[0,Lx] -> R      Dirichlet condition for v at y=-1
+
+     solveRobinStokes then solves The following boundary value problem:
+
+         PDE: Moment equations
+           (DxDx + DyDy)*u - Dx*p = f on [0,Lx]x[0,Ly]
+           (DxDx + DyDy)*v - Dy*p = g on [0,Lx]x[0,Ly]
+         PDE: Continuity Equations
+                      Dx*u + Dy*v = 0 on [0,Lx]x[0,Ly]
+         BC: Boundary conditions
+                         u - uTop = 0 on [0,Lx]x{1}
+            u + alpha*Dy*u - beta = 0 on [0,Lx]x{-1}
+                         v - vTop = 0 on [0,Lx]x{1}
+                         v - vBot = 0 on [0,Lx]x{-1}
+     Returns
+      u, v. p must be solved using a pressure solver."""
+    
+    
+    info = {"Dim": (Nx, Ny)}
+    kmax = (Nx-1) // 2
+    
+    dom_from = [FourBasis._domain(), ChebBasis._domain()]
+    scale, _ = ScaleShiftedBasisProduct._domain_to_scale_shift(dom_from, dom)
+    Lx = scale[0]
+    Ly = scale[1]
+                                                                   
+    
+    # Make sure the dimensions match. Truncate or zero pad.
+    f = f.reshape(Nx, Ny)
+    g = g.reshape(Nx, Ny)
+    alpha = alpha.reshape(Nx,1)
+    uTop = uTop.reshape(Nx,1)
+    beta = beta.reshape(Nx,1)
+    vTop = vTop.reshape(Nx,1)
+    vBot = vBot.reshape(Nx,1) 
+    
+    t = time.time()
+    # Laplace system 
+    ns = arange(0, Ny)
+    ks = arange(-kmax,kmax+1)
+    cn = lambda n: 1. + (n==0) 
+    # To correct low order coefficients!
+
+    # Inverse d/dy matrix
+    nVals = arange(1,Ny)[None, :]
+    dyValm1 = cn(nVals-1) / (2*nVals)
+    dyValp1 = -1 / (2*nVals)
+    iDy = spdiags(vstack([dyValm1, dyValp1]), [0,2], (Ny-1,Ny)) * Ly
+
+    # Inverse dd/ddy matrix
+    nVals = arange(2,Ny)[None, :]
+    ddyValp2 = 1./(4.*nVals * (nVals+1))
+    ddyVal0  = -1./(2.*(nVals ** 2 - 1))
+    ddyValm2 = cn(nVals-2)/(4 * nVals * (nVals-1))
+    iDy2 = spdiags(vstack([ddyValm2, ddyVal0, ddyValp2]), \
+                         [0,2,4], (Ny-2, Ny)) * Ly ** 2
+
+    
+    # Inverse ddd/dddy matrix
+    nVals = arange(3, Ny)[None, :]
+    dddyValp3 = -1 / (8*nVals * (nVals+1) * (nVals+2))
+    dddyValp1 =  3 / (8*(nVals+2) * nVals * (nVals-1))
+    dddyValm1 = -3 / (8*(nVals-2) * nVals *(nVals+1)) 
+    dddyValm3 = cn(nVals-3) / (8*nVals * (nVals-1) * (nVals-2))
+
+    iDy3 = spdiags(vstack([dddyValm3, dddyValm1, dddyValp1, dddyValp3]),\
+                          [0,2,4,6], (Ny-3, Ny)) * Ly ** 3
+
+    Dx  = spdiags((2j*np.pi*(ks[None, :])) ** 1, [0], (Nx, Nx)) / Lx**1
+    Dx2 = spdiags((2j*np.pi*(ks[None, :])) ** 2, [0], (Nx, Nx)) / Lx**2
+    Dx3 = spdiags((2j*np.pi*(ks[None, :])) ** 3, [0], (Nx, Nx)) / Lx**3
+
+    Idx  = speye(Nx)
+    Idy  = spdiags(ones((1, Ny-1)), [1], (Ny-1, Ny))
+    Idy2 = spdiags(ones((1, Ny-2)), [2], (Ny-2, Ny))
+    Idy3 = spdiags(ones((1, Ny-3)), [3], (Ny-3, Ny))
+
+    # Eval
+    botEval = kron(Idx, (-1) ** ns)
+    
+    topEval = kron(Idx, ones(ns.shape))
+    dirZero = sparse_coo([[], []], [], (Nx, Ny*Nx))
+
+    # Create B_upper
+    AMat = spdiags(flip(alpha).repeat(Nx, 1), ks, (Nx, Nx))
+    
+    dyEval  = ((ns ** 2) *(-1) ** (ns+1)) / Ly
+    botRobi = botEval + kron(AMat, dyEval)
+    unit_const = (ks == 0)
+    zero_const = sparse_coo([[],[]],[],((Ny-2),Nx*Ny))
+    
+    # B system
+    #print(By.shape, By2.shape, By.shape)
+    B11 = kron(Dx2[:kmax,:], iDy2[1:, :])+kron(Idx[:kmax,:], Idy3)
+    B12 = -(kron(Dx3[:kmax,:], iDy3)+kron(Dx[:kmax,:], iDy[2:, :]))
+    B21 = kron(unit_const, Idy2)
+    B22 = zero_const
+    B31 = kron(Dx2[kmax+1:,:], iDy2[1:, :])+kron(Idx[kmax+1:,:], Idy3)
+    B32 = -(kron(Dx3[kmax+1:,:], iDy3)+kron(Dx[kmax+1:,:],iDy[2:, :]))
+    B41 = kron(Dx, iDy)
+    B42 = kron(Idx, Idy)
+                  
+    B_pde = vstackSP([hstackSP([B11, B12]),
+                      hstackSP([B21, B22]),
+                      hstackSP([B31, B32]),
+                      hstackSP([B41, B42])])
+    
+    
+    #### BUG? ####
+    # MIGHT HAVE TO PERMUTE f.C DIMENSIONS
+    ##############
+    
+    b_mom = kron(Idx, iDy2[1:,:]) @ f.reshape(Ny*Nx, 1) \
+                  - kron(Dx, iDy3) @ g.reshape(Ny*Nx, 1)
+    b_pde = vstack([b_mom[0:(kmax*(Ny-3)),:],
+                      iDy2 @ (f[kmax,:, None]),
+                      b_mom[(kmax+1)*(Ny-3):,:],
+                      zeros(((Ny-1)*Nx,1))])
+
+    B_dir = vstackSP([hstackSP([botRobi, dirZero]),\
+                      hstackSP([dirZero, botEval]),\
+                      hstackSP([topEval, dirZero]),\
+                      hstackSP([dirZero[ks!=0,:], topEval[ks!=0, :]])\
+                    ])
+
+    b_dir = vstack([beta, vBot, uTop, vTop[ks!=0,:]])
+    
+    # solve
+    B = vstackSP([B_pde, B_dir])    
+    b = vstack([b_pde, b_dir])
+    
+    info["buildTime"] = time.time() - t;
+    
+    t = time.time()
+    if not with_gmres:
+        uv = solve(B, b)
+    else:
+        uv, _ = gmres(B, b, **gmresargs)
+    info["solveTime"] = time.time() - t
+    
+    
+    L = Nx*Ny
+    idx = arange(0, L)
+    uC = uv[idx+0*L].reshape(Nx, Ny)
+    vC = uv[idx+1*L].reshape(Nx, Ny)
+    
+   
+    return uC, vC, info
 
 
 def solveRobinStokesIterative(f, g, alpha, uTop, beta, vTop, vBot, dom, Nx, Ny, alpha0=None, tol=1e-3, logger=None):

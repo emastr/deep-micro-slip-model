@@ -34,7 +34,9 @@ class StokesData:
     
     def geom(self, **kwargs):
         return MacroGeomGeneric(self.f, self.df, self.ddf, self.dom, **kwargs)
-        
+
+    def copy(self):
+        return StokesData(self.f, self.df, self.ddf, self.g, self.dom, self.width, self.height)
         
     @staticmethod
     def load_from_matlab(path: str):
@@ -382,7 +384,7 @@ class StokesTrapezMicProb(MicroProblem):
         dom1 = [(xPos - x0)/wid*0.5*np.pi, (xPos+width-x0)/wid*0.5*np.pi]
         dom2 = [0, 0.5*np.pi]
         func = Geometry.change_domain([stokes_data.f, stokes_data.df, stokes_data.ddf], dom1, dom2)        
-        self.geom = RoundedMicroGeom(*func, 
+        self.geom = RoundedMicroGeomV2(*func, 
                                      width = width, 
                                      height = height, 
                                      corner_w = width*0.2,
