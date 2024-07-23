@@ -62,6 +62,7 @@ class Event:
         self.time_total = 0
         self.time_mean = 0
         self.name = name
+        self.time_std = 0.
         #
         self.is_running = False
         self.start_time = 0
@@ -76,11 +77,18 @@ class Event:
 
         self.calls += 1
         self.time_total += time_diff
+        if self.calls == 1:
+            self.time_std = 0#  abs(time_diff - self.time_mean)
+        else:
+            self.time_std = ((self.calls -2)/(self.calls - 1)*self.time_std**2 + (time_diff - self.time_mean)**2 / self.calls)**0.5
         self.time_mean += (time_diff - self.time_mean) / self.calls
         self.is_running = False
 
 
-    def to_string(self):
-        return f"Event: {self.name}, calls: {self.calls}, time: {self.time_total} s, mean time:{self.time_mean} s."
+    def to_string(self, std = False):
+        if not std:
+            return f"Event: {self.name}, calls: {self.calls}, time: {self.time_total} s, mean time:{self.time_mean} s."
+        else:
+            return f"Event: {self.name}, calls: {self.calls}, time: {self.time_total} s, mean time:{self.time_mean} s., std time: {self.time_std} s."
 
 

@@ -76,9 +76,9 @@ def solveRobinStokes_fromFunc(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yD
 def solveRobinStokes_fromBasis(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yDim, **kwargs):
     """Solve from Basis Function objects"""
     alpha_0 = np.mean(alpha.eval_grid())
-    #uC,vC,info = solveRobinStokesIterative(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yDim, alpha0=alpha_0, **kwargs)
-    uC,vC,info = solveRobinStokesMonolithic(f.basis.coef, g.basis.coef, alpha.basis.coef, uTop.basis.coef, beta.basis.coef, \
-                                            vTop.basis.coef, vBot.basis.coef, dom, xDim, yDim, **kwargs)
+    uC,vC,info = solveRobinStokesIterative(f, g, alpha, uTop, beta, vTop, vBot, dom, xDim, yDim, alpha0=alpha_0, **kwargs)
+    #uC,vC,info = solveRobinStokesMonolithic(f.basis.coef, g.basis.coef, alpha.basis.coef, uTop.basis.coef, beta.basis.coef, \
+    #                                        vTop.basis.coef, vBot.basis.coef, dom, xDim, yDim, **kwargs)
     
     u = BasisProduct(uC, xDim, yDim, FourBasis, ChebBasis)
     v = BasisProduct(vC, xDim, yDim, FourBasis, ChebBasis)
