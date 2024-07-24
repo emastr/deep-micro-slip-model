@@ -43,12 +43,14 @@ def get_net(path, num_pts, device, dtype):
 
 class DeepMicroSolver(Solver):
     """Solve the micro problem at a specific position. Precompute."""
-    def __init__(self, problem, net, net_settings, logger=None, **kwargs):
+    def __init__(self, problem, net, net_settings, logger=None, downsample=1, **kwargs):
         _2np = lambda x: x.cpu().detach().numpy()
         
+
         geom = problem.geom
         
         ## Compute deep
+        self.downsample = downsample
         self.geom = geom
         self.net = net
         self.net_settings = net_settings
@@ -94,8 +96,9 @@ class DeepMicroSolver(Solver):
         #print("WARNING: HOT-FIX line 87 at stokes_deep.py")
         d = 3
         #assert np.all(self.t[1:]-self.t[:-1] > 0), f"{self.t[-d:]}"
-        self.avg = lambda cond: np.sum((self.r[:-d] * np.conjugate(1j * cond(self.t[:-d]))).real)
-        self.davg = lambda cond: np.sum((self.dr[:-d] * np.conjugate(1j * cond(self.t[:-d]))).real)
+        s = self.downsample
+        self.avg = lambda cond: np.sum((self.r[:-d:s] * np.conjugate(1j * cond(self.t[:-d:s]))).real)*s
+        self.davg = lambda cond: np.sum((self.dr[:-d:s] * np.conjugate(1j * cond(self.t[:-d:s]))).real)*s
         
 
         if self.logger is not None:
