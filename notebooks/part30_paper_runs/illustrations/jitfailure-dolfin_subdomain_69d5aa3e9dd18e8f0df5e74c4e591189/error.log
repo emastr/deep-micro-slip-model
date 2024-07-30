@@ -1,0 +1,5 @@
+/tmp/tmpqot0vnj9/dolfin_subdomain_69d5aa3e9dd18e8f0df5e74c4e591189.cpp: In member function 'virtual bool dolfin::dolfin_subdomain_69d5aa3e9dd18e8f0df5e74c4e591189::inside(Eigen::Ref<const Eigen::Matrix<double, -1, 1> >, bool) const':
+/tmp/tmpqot0vnj9/dolfin_subdomain_69d5aa3e9dd18e8f0df5e74c4e591189.cpp:63:53: error: expected ';' before ')' token
+   63 |          return on_boundary && near(x[1],0.5, 3e-16));
+      |                                                     ^
+/tmp/tmpqot0vnj9/dolfin_subdomain_69d5aa3e9dd18e8f0df5e74c4e591189.cpp:63:53: error: expected primary-expression before ')' token
