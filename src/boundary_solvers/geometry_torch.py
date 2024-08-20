@@ -183,7 +183,7 @@ def reparameterize_dict(t, data, M=None):
     
     return data_out
 
-def geometry_to_net_input(geom, Mout, output=False):
+def geometry_to_net_input(geom, Mout, output=False, reparameterize_data=True):
     v, _ = geom.line_eval_adjoint(derivative=0, tol=1e-12, maxiter=200, verbose=False)
     dv, _ = geom.line_eval_adjoint(derivative=1, tol=1e-12, maxiter=200, verbose=False)
     t, w = geom.grid.get_grid_and_weights()
@@ -210,8 +210,11 @@ def geometry_to_net_input(geom, Mout, output=False):
         r, _ = geom.precompute_line_avg(derivative=0, tol=1e-12, maxiter=200, verbose=False)
         dr, _ = geom.precompute_line_avg(derivative=1, tol=1e-12, maxiter=200, verbose=False)
         data.update({"rx": r.real, "ry": r.imag, "drx": dr.real, "dry": dr.imag})
-        
-    data = reparameterize_dict(l, data, M=Mout)
+    
+    if reparameterize_data:
+        data = reparameterize_dict(l, data, M=Mout)
+    else: 
+        data = data
     #data["t"] = np.linspace(0, 2*np.pi, Mout+1)[:-1]
     return data
   

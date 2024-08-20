@@ -8,7 +8,7 @@ from boundary_solvers.geometry import *
 from boundary_solvers.geometry_torch import GeomData
 from architecture.unet import *
 from util.logger import EventTracker
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, random_split, Subset
 from util.dashboard import DashBoard
 from boundary_solvers.geometry_torch import norm
 
@@ -684,6 +684,28 @@ def fno_ver4(device=DEVICE):
     return egeofno(settings, device, DTYPETORCH)
 
 
+def fno_ver5(device=DEVICE):
+    # Features
+    inp_features = GeomData.PREDEFINED_INPUTS['reduced-cartesian-norm']
+    out_features = GeomData.PREDEFINED_OUTPUTS['cartesian-norm']
+    
+    # Model
+    settings = {"modes": 80,
+                "input_features": inp_features,
+                "output_features": out_features,
+                "weight_decay": 0,
+                "layer_widths": [4*len(inp_features),] * 4, #(3,8) works, (2,8) worse. (8, 3) best so far
+                "skip": True,
+                "bias": True,
+                "h1_weight": 1.0,
+                "activation": F.gelu,
+                "kernel_size": 1,
+                "batch_norm": True,
+                "amsgrad": False}
+    
+    return egeofno(settings, device, DTYPETORCH)
+
+
 
 
 class Session:
@@ -732,21 +754,28 @@ class Session:
         out_features = net.settings()["output_features"]
         return GeomData(data_dir, inp_features, out_features, random_roll=False, device=device, dtype=DTYPETORCH)       
     
-    def load_and_tfm_data(self, i):
+    def load_and_tfm_data(self, i, do_random_split=False):
         # Data
         self.data = self.get_data(self.net, self.path_data + f"data_big_{i}.torch", self.device)   
         self.M = len(self.data)
         self.M_train, self.M_batch = int(0.8*self.M), 32
-        self.train_data, self.test_data = random_split(self.data, [self.M_train, self.M-self.M_train])
+        
+        if do_random_split:
+            self.train_data, self.test_data = random_split(self.data, [self.M_train, self.M-self.M_train])
+        else:
+            self.train_data = Subset(self.data, range(self.M_train))
+            self.test_data = Subset(self.data, range(self.M_train, self.M))
+        
         # Test data
         (self.X_test, self.Y_test)  = self.test_data[:]
         # Train data
         self.train_loader = DataLoader(self.train_data, batch_size=self.M_batch, shuffle=True)
         
         
+        
     def train_nsteps(self, epochs):
         for epoch in range(epochs):
-            for big_batch in range(10):
+            for big_batch in range(9):
                 self.load_and_tfm_data(big_batch)
                 for m in range(self.M_train):
                     self.train_step()
@@ -761,14 +790,14 @@ class Session:
         (X_batch, Y_batch) = next(iter(self.train_loader))
         
         # Train on truncated net that expands as iterations progress
-        loss = self.loss_fcn(self.net(X_batch), Y_batch, grad_weight=self.h1_weight, device=self.device)
+        loss = self.loss_fcn(self.net(X_batch), Y_batch, grad_weight=self.h1_weight, normalize=True, device=self.device)
         loss.backward()
         self.optim.step()
         self.logger.end_event("train")
         
         # Test 
         self.trainloss.append(loss.item() ** 0.5)
-        self.testloss.append(self.loss_fcn(self.net(self.X_test), self.Y_test, grad_weight=0.0, device=self.device).item() ** 0.5)
+        self.testloss.append(self.loss_fcn(self.net(self.X_test), self.Y_test, grad_weight=0.0, normalize=False, device=self.device).item() ** 0.5)
 
         self.net.eval()
         # Print minor state info
@@ -863,7 +892,7 @@ class Session:
         
     # Loss function
     @staticmethod
-    def mse_normalized(x, y):
+    def mse_normalized(x, y, normalize=True):
         y_norm = torch.linalg.norm(y, dim=-1)[:,:,None] / np.sqrt(y.shape[-1])
         return torch.mean((x - y)**2 / y_norm**2)
         
@@ -875,7 +904,7 @@ class Session:
         return x_deriv
 
     @staticmethod
-    def loss_fcn(x, y, grad_weight=0.0, **kwargs):
+    def loss_fcn(x, y, grad_weight=0.0, normalize=True, **kwargs):
         x_der = Session.deriv(x, **kwargs)
         y_der = Session.deriv(y, **kwargs)
-        return Session.mse_normalized(x, y) + grad_weight * Session.mse_normalized(x_der, y_der)
+        return Session.mse_normalized(x, y, normalize) + grad_weight * Session.mse_normalized(x_der, y_der, normalize)
