@@ -2,9 +2,11 @@ README.md
 pyproject.toml
 src/__init__.py
 src/architecture/__init__.py
+src/architecture/bitdonet.py
 src/architecture/fno_1d.py
 src/architecture/fno_cnn_1d.py
 src/architecture/session.py
+src/architecture/session_bigdata.py
 src/architecture/ufno_1d.py
 src/architecture/unet.py
 src/architecture/unet_1d.py

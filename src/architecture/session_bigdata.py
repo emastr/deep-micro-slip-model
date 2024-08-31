@@ -27,11 +27,34 @@ class SkipNet(nn.Module):
         self.net = net
         self.settings_ = settings
         
-    def forward(self, x):
+    def forward(self, x):        
         if self.settings_["skip"]:
             return self.net(x) + torch.einsum('ij,bjm->bim', torch.diag(self.scale), x[:, -4:, :])
         else:
             return self.net(x) 
+    
+    def settings(self):
+        return self.settings_
+
+class EquivariantSkipNet(nn.Module):
+    def __init__(self, net, settings, device=DEVICE):
+        super(EquivariantSkipNet, self).__init__()
+        print("Warning: old skipnet had no scale parameter")
+        
+        self.scale = nn.Parameter(torch.ones(4, dtype=DTYPETORCH).to(device))
+        self.net = net
+        self.settings_ = settings
+        
+    def forward(self, x):        
+        xnorm = torch.linalg.norm(x[:, 2:4, :], dim=-1, keepdim=True)
+        x[:, 2:4, :] = x[:, 2:4, :] / xnorm
+        if self.settings_["skip"]:
+            x = self.net(x) + torch.einsum('ij,bjm->bim', torch.diag(self.scale), x[:, -4:, :])
+        else:
+            x = self.net(x)
+        x[:, :2, :] = x[:, :2, :] * xnorm
+        return x
+        
     
     def settings(self):
         return self.settings_
@@ -234,6 +257,8 @@ class FNOsvd3(nn.Module):
     
     
 class FNOfakeSVD(nn.Module):
+    
+    
     def __init__(self, basis_size, scale=False, **kwargs):
         super(FNOfakeSVD, self).__init__()
         
@@ -298,7 +323,7 @@ class FNOfakeSVD(nn.Module):
         ax.imshow(mat, vmin=mean-2*std, vmax=mean+2*std)
         ax.set_title(f"Cond: {np.linalg.cond(mat):.2e}")
         pass
-   
+  
 # Try different models
 # Data: dictionary with M x 256 resolution entry
 # Model: input_Tfm -> Cat -> Net -> Output_Tfm -> unCat
@@ -334,7 +359,7 @@ def egeofno_ver1(device=DEVICE):
                 "layer_widths": [4*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
                 "skip": True,
                 "bias": True,
-                "h1_weight": 1.0,
+                "h1_weight": 0.2,
                 "activation": F.gelu,
                 "kernel_size": 1,
                 "batch_norm": True,
@@ -377,7 +402,7 @@ def egeofno_ver3(device=DEVICE):
                 "layer_widths": [4*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
                 "skip": True,
                 "bias": True,
-                'h1_weight': 1.0,
+                'h1_weight': 0.02,
                 "activation": F.gelu,
                 "kernel_size": 1,
                 "batch_norm": True,
@@ -612,7 +637,7 @@ def fno_ver1(device=DEVICE):
                 "layer_widths": [3*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
                 "skip": True,
                 "bias": True,
-                "h1_weight": 1.0,
+                "h1_weight": 0.2,
                 "activation": F.gelu,
                 "kernel_size": 1,
                 "batch_norm": True,
@@ -675,14 +700,13 @@ def fno_ver4(device=DEVICE):
                 "layer_widths": [4*len(inp_features),] * 8, #(3,8) works, (2,8) worse. (8, 3) best so far
                 "skip": True,
                 "bias": True,
-                "h1_weight": 1.0,
+                "h1_weight": 0.05,
                 "activation": F.gelu,
                 "kernel_size": 1,
                 "batch_norm": True,
                 "amsgrad": False}
     
     return egeofno(settings, device, DTYPETORCH)
-
 
 def fno_ver5(device=DEVICE):
     # Features
@@ -717,7 +741,8 @@ class Session:
                  save_dir="/home/emastr/phd/data/article_training/",
                  dash_dir="/home/emastr/phd/data/dashboard/",
                  device=DEVICE,
-                 seed=None):
+                 seed=None,
+                 lr_schedule=False):
     
         if seed is not None:
             torch.manual_seed(seed)
@@ -733,8 +758,6 @@ class Session:
         self.net = net
         self.load_and_tfm_data(0)
         
-        # Training settings
-        self.optim = torch.optim.Adam(net.parameters(), weight_decay=weight_decay)
         
         # Loss function
         self.h1_weight = 0.0 if "h1_weight" not in net.settings() else net.settings()["h1_weight"]
@@ -744,8 +767,20 @@ class Session:
         self.testloss  = []
         self.logger = EventTracker()
         self.step_num = 0
+        self.epoch = 0
         self.dashboard_setup()
         self.save_name = save_name
+        
+        
+        # Training settings
+        self.optim = torch.optim.Adam(net.parameters(), lr=0.001, weight_decay=weight_decay)
+        
+        if lr_schedule:
+            self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=100, gamma=0.5)
+            #decay = .001
+            #fcn = lambda step: 1./(1. + decay*step)
+            #self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optim, lr_lambda=fcn)
+        
         
     @staticmethod
     def get_data(net, data_dir, device):
@@ -758,7 +793,7 @@ class Session:
         # Data
         self.data = self.get_data(self.net, self.path_data + f"data_big_{i}.torch", self.device)   
         self.M = len(self.data)
-        self.M_train, self.M_batch = int(0.8*self.M), 32
+        self.M_train, self.M_batch = int(0.8*self.M), 512*4#32
         
         if do_random_split:
             self.train_data, self.test_data = random_split(self.data, [self.M_train, self.M-self.M_train])
@@ -777,10 +812,13 @@ class Session:
         for epoch in range(epochs):
             for big_batch in range(9):
                 self.load_and_tfm_data(big_batch)
-                for m in range(self.M_train):
+                for m in range(len(self.train_loader)):#self.M_train):
                     self.train_step()
                     self.step_num += 1
                 self.save_state()
+            self.epoch += 1
+            if hasattr(self, "scheduler"):
+                self.scheduler.step()
     
     
     def train_step(self):
@@ -801,15 +839,17 @@ class Session:
 
         self.net.eval()
         # Print minor state info
-        if i % 500 == 0:
+        if i % 50 == 0:
             self.dashboard_update()
             iter_speed = int(1/self.logger["train"].time_mean)
-            print(f"Step {i}. Train loss = {self.trainloss[-1]:.2e}, test loss = {self.testloss[-1]:.2e}, {iter_speed} iter/s, shape={X_batch.shape[-1]}", end="\r")
+            print(f"Epoch {self.epoch}. Step {i}. Train loss = {self.trainloss[-1]:.2e}, test loss = {self.testloss[-1]:.2e}, {iter_speed} iter/s, shape={X_batch.shape[-1]}", end="\r")
 
         # major state info
         if i % 1000 == 0:
             self.save_state()
             
+            
+        
         self.net.train()
         
     

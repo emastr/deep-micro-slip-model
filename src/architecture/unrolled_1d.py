@@ -74,10 +74,10 @@ class Unrolled(nn.Module):
     
     
 def factory():
-    return Unet(**settings)
-    #return nn.Sequential(nn.Conv1d(2,2,3,padding=1, padding_mode='circular'),\
-    #                     nn.ReLU(),\
-    #                     nn.Conv1d(2,2,3,padding=1, padding_mode='circular'))
+    #return Unet(**settings)
+    return nn.Sequential(nn.Conv1d(2,2,3,padding=1, padding_mode='circular'),\
+                         nn.ReLU(),\
+                         nn.Conv1d(2,2,3,padding=1, padding_mode='circular'))
 
 @unpack
 def to_dtype(x, dtype):

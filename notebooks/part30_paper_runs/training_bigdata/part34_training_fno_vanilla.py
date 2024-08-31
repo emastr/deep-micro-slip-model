@@ -12,7 +12,7 @@ save_dir = "/mnt/data0/emastr/training/article_training_hugedata_epochlr_bigbatc
 dash_dir = "/home/emastr/deep-micro-slip-model/data/dashboard/fno_vanilla_huge_lr/"
 
 
-device="cuda:1"
+device="cuda:0"
 for seed in [0, 1, 2, 3, 4, 5]:
     
     print(f"Seed {seed}, model ver4")
