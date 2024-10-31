@@ -145,11 +145,13 @@ class Attention(nn.Module):
         return torch.einsum("bix,iox->box", inp, weights)
 
     @staticmethod
-    def activation(x, eps=0.00001):
+    def activation(x, func=None, eps=0.00001):
         #func = lambda x: 1 / (1 + torch.exp(-x))
-        func = lambda x: F.gelu(x) ** 0.5
+        #func = lambda x: F.gelu(x) ** 0.5
         #func = F.gelu
-        return func(torch.abs(x))*x/(eps + torch.abs(x))
+        #return func(torch.abs(x))*x/(eps + torch.abs(x))
+        abs_x = torch.abs(x)
+        return torch.max(abs_x, torch.ones_like(abs_x))*x/(eps + abs_x)
     
     def softmax(self, x):
         x = torch.exp(x)
@@ -343,8 +345,8 @@ class AFNO1d(nn.Module):
                     "output_features": out_features,\
                     "weight_decay": 0,\
                     "modes": 41,\
-                    "layer_widths": 5*[8,],\
-                    "h1_weight": 0.0,
+                    "layer_widths": 5*[15,],\
+                    "h1_weight": 0.01,
                     "batch_norm": True,
                     "amsgrad": False}
         
