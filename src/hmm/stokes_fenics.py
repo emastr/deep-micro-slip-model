@@ -97,6 +97,7 @@ class StokesData:
         corner_l = center - width * tangent/2
         corner_r = center + width * tangent/2
 
+    
         bbox = Box(center, normal, width + 2*pad, height+2*pad)
         
         if isinstance(fine_boundary_mesh, dl.Mesh):
@@ -139,15 +140,24 @@ class StokesData:
         indices = order_connected_vertices(boxMesh)
         points = np.array([v[:2] for v in boxMesh.coordinates()])[indices]
         feasible_domain = []
+        
+        
+        # Debugging
+        #geom.plot(plt.gca())
+        #plt.plot(points[:, 0], points[:, 1], 'b--')
+        
         for i in [2, 6]:
             dom = geom.dom[i:i+2]
             ab = geom.eval_param(t=np.array(geom.dom[i:i+2]))
             a, b = np.array([ab[0].real, ab[0].imag]), np.array([ab[1].real, ab[1].imag])
             print("Plot line 146 in stokes_fenics.py", end='\r')
-            #geom.plot(plt.gca())
+            
+            # Debugging    
             #plt.plot(points[:, 0], points[:, 1], color='blue')
             #plt.scatter(a[0], a[1], color='red')
             #plt.scatter(b[0], b[1], color='red')
+            # end debugging
+            
             _, t = find_intersection_on_segment(points, a, b)
             if t is None:
                 raise ValueError("Micro problem is poorly dimensioned. Try increasing height.")
