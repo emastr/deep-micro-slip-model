@@ -61,8 +61,19 @@ def order_connected_vertices(mesh_1d):
 
 def get_indicator(domain, space):
     """Get the indicator function of a domain"""
+    #indicator = dl.Function(space)
+    #indicator.vector()[:] = np.array([1. if domain.inside(x, False) else 0. for x in space.tabulate_dof_coordinates()])
+    
+    mesh = space.mesh()
+    mf = dl.MeshFunction("size_t", mesh, mesh.topology().dim(), 0)
+    domain.mark(mf, 1)
+
     indicator = dl.Function(space)
-    indicator.vector()[:] = np.array([1. if domain.inside(x, False) else 0. for x in space.tabulate_dof_coordinates()])
+    V0 = dl.FunctionSpace(mesh, "CG", 1)
+    temp = dl.Function(V0)
+    temp.vector()[:] = np.array(mf.array(), dtype=np.float64)
+    indicator.assign(dl.interpolate(temp, space))
+    
     return indicator
 
 

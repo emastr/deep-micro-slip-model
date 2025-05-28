@@ -226,14 +226,25 @@ class StokesMacProb(MacroProblem):
         # Forces
         V = self.U.sub(0).collapse()
         self.V = V
-        self.indicator = get_indicator(G, V)
+        
+        print("Computing indicator function")
+        #self.indicator = get_indicator(G, V)
+        
+        print("Projecting g to function space")
         self.g = to_fenics_func(g, V) 
+        
+        print("Projecting alpha0 to function space")
         self.alpha_inv = to_fenics_func(lambda x, y: 1./alpha0(x, y), V)
+        
+        print("Facet normals")
         n = dl.FacetNormal(stokes_data.macro_mesh)
         
         # Slip length
+        print("Mark robin boundary")
         robin = dl.MeshFunction('size_t', stokes_data.macro_mesh, 1)
         G.mark(robin, 1)
+        
+        print("Defining measures")
         ds = dl.Measure('ds')[robin]
         
         def proj_n(u): return dl.dot(u, n)
@@ -244,7 +255,7 @@ class StokesMacProb(MacroProblem):
         def c(u, v): return (dl.dot(u,v) - proj_n(u) * proj_n(v)) * self.alpha_inv * ds(1)
         def r(u, v): return (proj_n(u)  - self.g) * proj_n(v) * ds(1)
 
-        
+        print("Setting up variational form")
         self.F = a(u, v, p, q) + b(u, v, p, q) + c(u, v) + lam * r(u, v)  - dl.dot(f, v)*dl.dx
         self.a = dl.lhs(self.F)
         self.L = dl.rhs(self.F)
@@ -253,11 +264,30 @@ class StokesMacProb(MacroProblem):
         return False
     
     def update(self, micro_sol):
-        G = self.stokes_data.rough_domain
-        x = np.array([m.x for m in micro_sol])
-        a = np.array([m.alpha for m in micro_sol])
-        self.interp_a = self.interp(x, a)
-        self.alpha_inv.vector()[:] = np.array([1./self.interp_a(x, y)  for x, y in self.V.tabulate_dof_coordinates()]) #if G.inside(np.array([x,y]), True) else 0.
+        if False:
+            G = self.stokes_data.rough_domain
+            x = np.array([m.x for m in micro_sol])
+            a = np.array([m.alpha for m in micro_sol])
+            self.interp_a = self.interp(x, a)
+            self.alpha_inv.vector()[:] = np.array([1./self.interp_a(x, y)  for x, y in self.V.tabulate_dof_coordinates()]) #if G.inside(np.array([x,y]), True) else 0.
+        
+        # Extract input points and values as arrays
+        x_coords = np.array([m.x for m in micro_sol])
+        alpha_vals = np.array([m.alpha for m in micro_sol])
+
+        # Build interpolator (assumed to return a callable)
+        self.interp_a = self.interp(x_coords, alpha_vals)
+
+        # Get mesh coordinates (dof ordering)
+        dof_coords = self.V.tabulate_dof_coordinates().reshape((-1, 2))
+        x_dof = dof_coords[:, 0]
+        y_dof = dof_coords[:, 1]
+
+        # Evaluate interpolator at all dof coordinates
+        out = self.interp_a(x_dof, y_dof)
+
+        # Assign to the Function vector
+        self.alpha_inv.vector().set_local(out)
 
 
 class MacroSolver(Solver):
